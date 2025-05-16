@@ -77,8 +77,8 @@ class HMM:
             X[:, i] = self.outputDistr[S[i]].rand(1).flatten()
         
         return X, S
-    def viterbi(self):
-        pass
+    def viterbi(self,pX):
+        return self.mc.viterbi(pX)
 
     def train(self):
         pass
