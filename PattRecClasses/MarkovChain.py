@@ -98,8 +98,23 @@ class MarkovChain:
                 S[t] = np.random.choice(self.nStates, p=self.A[S[t-1]])
         return S
 
-    def viterbi(self):
-        pass
+    def viterbi(self, pX):
+        print(pX.shape)
+        N, T = pX.shape
+        viterbi_prob = np.zeros((N, T))
+        viterbi_prob[:, 0] = self.q * pX[:, 0]
+        for t in range(1, T):
+            for j in range(N):
+                viterbi_prob[j, t] = np.max(viterbi_prob[:, t-1] * self.A[:, j]) * pX[j, t]
+            
+        # Backtrack to find the most likely state sequence
+        viterbi_path = np.zeros(T, dtype=int)
+        viterbi_path[-1] = np.argmax(viterbi_prob[:, -1])
+        for t in range(T-2, -1, -1):
+            viterbi_path[t] = np.argmax(viterbi_prob[:, t] * self.A[:, viterbi_path[t+1]])
+        
+        viterbi_likelihood = np.max(viterbi_prob[:, -1])
+        return viterbi_path, viterbi_likelihood
     
     def stationaryProb(self):
         pass
