@@ -93,7 +93,7 @@ class HMM:
         pX = self.observationProb(x)
         return self.stateGen.viterbi(pX)
 
-    def train(self, x:np.ndarray , nIter=10, debug=False):
+    def train(self, x:np.ndarray , nIter=10, threshold = 0.1, debug=False):
         """
         Train the HMM using the Baum-Welch algorithm.
         
@@ -168,7 +168,9 @@ class HMM:
                     print(f"cov:{i+1}", self.outputDistr[i].cov)
             loglike_old = loglike
             loglike = np.sum(np.log(c))
-            print("log-likelihood:", loglike)
+            if np.abs(loglike - loglike_old) < threshold:
+                break
+            print(f"Iter {_} : log-likelihood:", loglike)
 
     def stateEntropyRate(self):
         pass
