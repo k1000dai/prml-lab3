@@ -3,7 +3,6 @@ from .DiscreteD import DiscreteD
 from .GaussD import GaussD
 from .MarkovChain import MarkovChain
 
-
 class HMM:
     """
     HMM - class for Hidden Markov Models, representing
@@ -45,11 +44,23 @@ class HMM:
     """
     def __init__(self, mc, distributions):
 
-        self.stateGen = mc
-        self.outputDistr = distributions
+        self.stateGen:MarkovChain = mc
+        self.outputDistr : list[GaussD] = distributions
 
         self.nStates = mc.nStates
         self.dataSize = distributions[0].dataSize
+    
+    def observationProb(self, x):
+        """
+        x= matrix or row vector with output data samples
+        pX= matrix with output probabilities
+        pX(i,j)= P[X(t)=x(t) | S(t)=i]
+        """
+        pX = np.zeros((len(x), self.nStates))
+        for i in range(len(x)):
+            for j in range(self.nStates):
+                pX[i,j] = self.outputDistr[j].prob(x[i])
+        return pX
     
     def rand(self, nSamples):
         """
@@ -77,11 +88,87 @@ class HMM:
             X[:, i] = self.outputDistr[S[i]].rand(1).flatten()
         
         return X, S
-    def viterbi(self,pX):
-        return self.mc.viterbi(pX)
+    
+    def viterbi(self,x):
+        pX = self.observationProb(x)
+        return self.stateGen.viterbi(pX)
 
-    def train(self):
-        pass
+    def train(self, x:np.ndarray , nIter=10, debug=False):
+        """
+        Train the HMM using the Baum-Welch algorithm.
+        
+        Input:
+        x= matrix or row vector with output data samples
+        nIter= number of iterations for training
+        
+        Result:
+        self= trained HMM object
+        """
+        # Iterate for nIter times
+        loglike = - np.inf
+        for _ in range(nIter):
+            pX = self.observationProb(x)
+            # E-step: calculate expected values
+            a_hat, c = self.stateGen.forward(pX)
+            b_hat = self.stateGen.backward(c,pX)
+            # M-step: update parameters
+            gamma = np.zeros((len(x), self.nStates))
+            for i in range(len(x)):
+                for j in range(self.nStates):
+                    gamma[i,j] = a_hat[i,j] * b_hat[i,j] * c[i]
+
+            #update initial state probabilities
+            q_new = np.zeros(self.nStates)
+            for j in range(self.nStates):
+                q_new[j] = np.sum(gamma[:,j]) / np.sum(gamma)
+            self.stateGen.q = q_new
+            if debug:
+                print("q:", self.stateGen.q)
+            
+            #update transition probabilities
+            A_new = np.zeros((self.nStates, self.nStates))
+            xi = np.zeros((self.nStates, self.nStates, len(x)-1))
+            for i in range(self.nStates):
+                for j in range(self.nStates):
+                    for t in range(len(x)-1):
+                        xi[i,j,t] = a_hat[t,i] * self.stateGen.A[i,j] * b_hat[t+1,j] * pX[t+1,j]
+            xi_ij = np.zeros((self.nStates, self.nStates))
+            for i in range(self.nStates):
+                for j in range(self.nStates):
+                    xi_ij[i,j] = np.sum(xi[i,j,:])
+            for i in range(self.nStates):
+                for j in range(self.nStates):
+                    A_new[i,j] = xi_ij[i,j] / np.sum(xi_ij[i,:])
+
+            self.stateGen.A = A_new
+            if debug:
+                print("A:", self.stateGen.A)
+
+            
+            #update output distributions
+            mu_new = np.zeros((self.nStates, self.dataSize))
+            
+            for i in range(self.nStates):
+                gamma_i = np.sum(gamma[:,i])
+                for t in range(len(x)):
+                    mu_new[i,:] += gamma[t,i] * x[t]
+                mu_new[i,:] /= gamma_i
+                self.outputDistr[i].means = mu_new[i,:]
+                if debug:
+                    print(f"mu:{i+1}", self.outputDistr[i].means)
+            
+            cov_new = np.zeros((self.nStates, self.dataSize, self.dataSize))
+            for i in range(self.nStates):
+                gamma_i = np.sum(gamma[:,i])
+                for t in range(len(x)):
+                    cov_new[i,:,:] += gamma[t,i] * np.outer(x[t]-mu_new[i,:], x[t]-mu_new[i,:])
+                cov_new[i,:,:] /= gamma_i
+                self.outputDistr[i].cov = cov_new[i,:,:]
+                if debug:
+                    print(f"cov:{i+1}", self.outputDistr[i].cov)
+            loglike_old = loglike
+            loglike = np.sum(np.log(c))
+            print("log-likelihood:", loglike)
 
     def stateEntropyRate(self):
         pass
@@ -89,7 +176,7 @@ class HMM:
     def setStationary(self):
         pass
 
-    def logprob(self,x):
+    def log_like(self,x):
         pX = np.zeros((len(x), self.nStates))
         for i in range(len(x)):
             for j in range(self.nStates):
