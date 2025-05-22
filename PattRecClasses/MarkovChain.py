@@ -25,8 +25,7 @@ class MarkovChain:
         self.is_finite = False
         if self.A.shape[0] != self.A.shape[1]:
             self.is_finite = True
-
-
+        
     def probDuration(self, tmax):
         """
         Probability mass of durations t=1...tMax, for a Markov Chain.
@@ -99,22 +98,44 @@ class MarkovChain:
         return S
 
     def viterbi(self, pX):
-        print(pX.shape)
-        N, T = pX.shape
-        viterbi_prob = np.zeros((N, T))
-        viterbi_prob[:, 0] = self.q * pX[:, 0]
+        """
+        Viterbi algorithm for finding the most likely state sequence
+        pX : observation probabilities(T x N)"""
+        T, N = pX.shape
+        viterbi_prob = np.zeros((T, N))
+        viterbi_backpointer = np.zeros((T, N), dtype=int)
+        # Initialization
+        for i in range(N):
+            viterbi_prob[0, i] = self.q[i] * pX[0, i]
+            viterbi_backpointer[0, i] = 0
+        # Recursion
         for t in range(1, T):
             for j in range(N):
-                viterbi_prob[j, t] = np.max(viterbi_prob[:, t-1] * self.A[:, j]) * pX[j, t]
-            
-        # Backtrack to find the most likely state sequence
+                max_prob = -1
+                max_state = -1
+                for i in range(N):
+                    prob = viterbi_prob[t-1, i] * self.A[i, j] * pX[t, j]
+                    if prob > max_prob:
+                        max_prob = prob
+                        max_state = i
+                viterbi_prob[t, j] = max_prob
+                viterbi_backpointer[t, j] = max_state
+            # Normalization
+            viterbi_prob[t, :] /= np.sum(viterbi_prob[t, :])
+        # viterbi path
         viterbi_path = np.zeros(T, dtype=int)
-        viterbi_path[-1] = np.argmax(viterbi_prob[:, -1])
+        max_prob = -1
+        max_state = -1
+        for i in range(N):
+            if viterbi_prob[T-1, i] > max_prob:
+                max_prob = viterbi_prob[T-1, i]
+                max_state = i
+        viterbi_path[T-1] = max_state
+        # Backtrack
         for t in range(T-2, -1, -1):
-            viterbi_path[t] = np.argmax(viterbi_prob[:, t] * self.A[:, viterbi_path[t+1]])
-        
-        viterbi_likelihood = np.max(viterbi_prob[:, -1])
-        return viterbi_path, viterbi_likelihood
+            viterbi_path[t] = viterbi_backpointer[t+1, viterbi_path[t+1]]
+        return viterbi_path
+            
     
     def stationaryProb(self):
         pass
@@ -138,33 +159,29 @@ class MarkovChain:
         pass
 
     def forward(self, pX):
-        #implements forward algorithm
-        #use pX as B ???
-        N,T = pX.shape
-        alpha = []
-        alpha_hat = np.zeros((N,T))
-        for j in range(N):
-            alpha.append(self.q[j]*pX[j][0])
-        alpha1 = np.array(alpha)
-        c1 = np.sum(alpha1)
-        alpha_hat[:,0] = alpha1/c1
+        # pX is a matrix of size (N, D)
+        # where T is the number of time samples, N is the number of states.
+        T, N   = pX.shape
         c = np.zeros((T,1))
-        c[0] = c1
-        
-        #algorithm
+        alpha_hat = np.zeros((T, N))
+        #initialization
+        for i in range(N):
+            alpha_hat[0,i] = self.q[i]*pX[0][i]
+        c[0] = np.sum(alpha_hat[0,:])
+        alpha_hat[0,:] = alpha_hat[0,:]/c[0]
         
         for t in range(1,T):
             alpha_temp = np.zeros((N))
             for j in range(N):
                 sum = 0
                 for i in range(N):
-                    sum+=alpha_hat[i][t-1]*self.A[i][j]
-                alpha_temp[j] = sum * pX[j][t]
+                    sum+=alpha_hat[t-1][i]*self.A[i][j]
+                alpha_temp[j] = sum * pX[t][j]
             c[t] = np.sum(alpha_temp)
-            alpha_hat[:,t] = alpha_temp/c[t]
+            alpha_hat[t,:] = alpha_temp/c[t]
         
         if self.is_finite: #add c_[T+1]
-            c = np.append(c,np.sum(alpha_hat[:, -1]*self.A[:,N]))
+            c = np.append(c,np.sum(alpha_hat[-1,:]*self.A[:,N]))
         
         return alpha_hat, c
 
@@ -172,18 +189,18 @@ class MarkovChain:
         pass
     
     def backward(self,c, pX):
-        N,T = pX.shape
-        beta_hat = np.zeros((N,T))
+        T, N  = pX.shape
+        beta_hat = np.zeros((T,N))
         if self.is_finite:
-            beta_hat[:,T-1] = self.A[:,N]/(c[T-1]*c[T])
+            beta_hat[T-1,:] = self.A[:,N]/(c[T-1]*c[T])
         else:
-            beta_hat[:,T-1] = 1/c[T-1]
+            beta_hat[T-1,:] = 1/c[T-1]
         for t in range(T-2,-1,-1):
             for i in range(N):
                 sum = 0
                 for j in range(N):
-                    sum+=self.A[i][j]*pX[j][t+1]*beta_hat[j][t+1]
-                beta_hat[i][t] = sum/c[t]  
+                    sum+=self.A[i][j]*pX[t+1][j]*beta_hat[t+1][j]
+                beta_hat[t][i] = sum/c[t]  
         return beta_hat
 
     def adaptStart(self):
