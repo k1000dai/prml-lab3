@@ -90,10 +90,10 @@ class HMM:
         pass
 
     def logprob(self,x):
-        pX = np.zeros((self.nStates, len(x)))
+        pX = np.zeros((len(x), self.nStates))
         for i in range(len(x)):
             for j in range(self.nStates):
-                pX[j,i] = self.outputDistr[j].prob(x[i]) 
+                pX[i,j] = self.outputDistr[j].prob(x[i]) 
         a_hat, c = self.stateGen.forward(pX)
         return np.sum(np.log(c))
 

@@ -138,33 +138,29 @@ class MarkovChain:
         pass
 
     def forward(self, pX):
-        #implements forward algorithm
-        #use pX as B ???
-        N,T = pX.shape
-        alpha = []
-        alpha_hat = np.zeros((N,T))
-        for j in range(N):
-            alpha.append(self.q[j]*pX[j][0])
-        alpha1 = np.array(alpha)
-        c1 = np.sum(alpha1)
-        alpha_hat[:,0] = alpha1/c1
+        # pX is a matrix of size (N, D)
+        # where T is the number of time samples, N is the number of states.
+        T, N   = pX.shape
         c = np.zeros((T,1))
-        c[0] = c1
-        
-        #algorithm
+        alpha_hat = np.zeros((T, N))
+        #initialization
+        for i in range(N):
+            alpha_hat[0,i] = self.q[i]*pX[0][i]
+        c[0] = np.sum(alpha_hat[0,:])
+        alpha_hat[0,:] = alpha_hat[0,:]/c[0]
         
         for t in range(1,T):
             alpha_temp = np.zeros((N))
             for j in range(N):
                 sum = 0
                 for i in range(N):
-                    sum+=alpha_hat[i][t-1]*self.A[i][j]
-                alpha_temp[j] = sum * pX[j][t]
+                    sum+=alpha_hat[t-1][i]*self.A[i][j]
+                alpha_temp[j] = sum * pX[t][j]
             c[t] = np.sum(alpha_temp)
-            alpha_hat[:,t] = alpha_temp/c[t]
+            alpha_hat[t,:] = alpha_temp/c[t]
         
         if self.is_finite: #add c_[T+1]
-            c = np.append(c,np.sum(alpha_hat[:, -1]*self.A[:,N]))
+            c = np.append(c,np.sum(alpha_hat[-1,:]*self.A[:,N]))
         
         return alpha_hat, c
 
@@ -172,18 +168,18 @@ class MarkovChain:
         pass
     
     def backward(self,c, pX):
-        N,T = pX.shape
-        beta_hat = np.zeros((N,T))
+        T, N  = pX.shape
+        beta_hat = np.zeros((T,N))
         if self.is_finite:
-            beta_hat[:,T-1] = self.A[:,N]/(c[T-1]*c[T])
+            beta_hat[T-1,:] = self.A[:,N]/(c[T-1]*c[T])
         else:
-            beta_hat[:,T-1] = 1/c[T-1]
+            beta_hat[T-1,:] = 1/c[T-1]
         for t in range(T-2,-1,-1):
             for i in range(N):
                 sum = 0
                 for j in range(N):
-                    sum+=self.A[i][j]*pX[j][t+1]*beta_hat[j][t+1]
-                beta_hat[i][t] = sum/c[t]  
+                    sum+=self.A[i][j]*pX[t+1][j]*beta_hat[t+1][j]
+                beta_hat[t][i] = sum/c[t]  
         return beta_hat
 
     def adaptStart(self):
