@@ -93,7 +93,7 @@ class HMM:
         pX = self.observationProb(x)
         return self.stateGen.viterbi(pX)
 
-    def train(self, x:np.ndarray , nIter=10, threshold = 0.1, debug=False):
+    def train(self, x:np.ndarray , nIter=100, threshold = 10**(-3), debug=False):
         """
         Train the HMM using the Baum-Welch algorithm.
         

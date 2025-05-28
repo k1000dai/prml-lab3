@@ -5,7 +5,9 @@ This repository contains the code and analysis for Lab 3 of the Pattern Recognit
 ## Project Overview
 
 - **Goal:**  
-  To understand and implement probabilistic models, specifically Markov chains and HMMs with Gaussian emissions, and to analyze their behavior on synthetic or real data.
+   The aim is to implement a classifier for activity recognition based on data from a phone’s acceleration sensors. The classifier should be able to discriminate between the states of standing, walking, or running. 
+   The educative aim is to understand and implement probabilistic models, specifically Markov chains and HMMs with Gaussian emissions, and to analyze their behavior on real data.
+
 - **Key Topics:**
   - Markov chains: transition and emission probabilities
   - Gaussian distributions: parameterization and sampling
@@ -16,6 +18,8 @@ This repository contains the code and analysis for Lab 3 of the Pattern Recognit
 
 - `lab3.ipynb` — Main Jupyter notebook containing all code, explanations, and results.
 - `PattRecClasses` - Classes for HMMs and Gaussian distributions. 
+- `data`- folder with 10 samples of accelerometer data used for training and testing. Each sample is a combination of walking, standing still, and running.
+- `sample` - folder with 6 samples of accelerometer data. Each sample is only one of the following: walking, standing, or running. Half the samples are used for initialization of the HMM, half are used for testing.
 
 ## Usage
 
@@ -23,12 +27,13 @@ This repository contains the code and analysis for Lab 3 of the Pattern Recognit
 
 - Python 3.x
 - Jupyter Notebook
+- python library `pandas`
 - Common scientific libraries: `numpy`, `scipy`, `matplotlib`
 
 You can install the requirements using:
 
 ```bash
-pip install numpy scipy matplotlib jupyter
+pip install pandas numpy scipy matplotlib jupyter
 ```
 
 if you use uv, you can install the requirements with:
